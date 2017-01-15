@@ -21,7 +21,7 @@ dnl  You should have received a copy of the GNU General Public License
 dnl  along with this program (see the file COPYING included with this
 dnl  distribution); if not, write to the Free Software Foundation, Inc.,
 dnl  59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-
+dnl testing.....................
 dnl Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
