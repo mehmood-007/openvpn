@@ -26,6 +26,7 @@
 
 # This option prevents autoreconf from overriding our COPYING and
 # INSTALL targets:
+# TEsting Add DHCP Feature..................................
 AUTOMAKE_OPTIONS = foreign 1.9
 ACLOCAL_AMFLAGS = -I m4
 
