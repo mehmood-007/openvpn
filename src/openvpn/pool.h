@@ -31,6 +31,7 @@
 
 #include "basic.h"
 #include "status.h"
+#include "dhcp-plugin.h"
 
 #define IFCONFIG_POOL_MAX         65536
 #define IFCONFIG_POOL_MIN_NETBITS    16
@@ -55,7 +56,10 @@ struct ifconfig_pool
   bool ipv6;
   struct in6_addr base_ipv6;
   unsigned int size_ipv6;
-  struct ifconfig_pool_entry *list;
+  struct ifconfig_pool_entry * list;
+  bool dhcp_plugin;
+  char * dhcp_if_name; 
+  char * dhcp_server_ip;
 };
 
 struct ifconfig_pool_persist
@@ -66,15 +70,17 @@ struct ifconfig_pool_persist
 
 typedef int ifconfig_pool_handle;
 
-struct ifconfig_pool *ifconfig_pool_init (int type, in_addr_t start, in_addr_t end, const bool duplicate_cn, const bool ipv6_pool, const struct in6_addr ipv6_base, const int ipv6_netbits );
+struct ifconfig_pool *ifconfig_pool_init ( int type, in_addr_t start, in_addr_t end, const bool duplicate_cn, const bool
+ipv6_pool, const struct in6_addr ipv6_base, const int ipv6_netbits, bool dhcp_plugin, char* dhcp_ip_, char* dhcp_if_ );
 
 void ifconfig_pool_free (struct ifconfig_pool *pool);
 
 bool ifconfig_pool_verify_range (const int msglevel, const in_addr_t start, const in_addr_t end);
 
-ifconfig_pool_handle ifconfig_pool_acquire (struct ifconfig_pool *pool, in_addr_t *local, in_addr_t *remote, struct in6_addr *remote_ipv6, const char *common_name);
+ifconfig_pool_handle ifconfig_pool_acquire ( struct ifconfig_pool * pool, in_addr_t * local, in_addr_t * remote, struct in6_addr *remote_ipv6, const char *common_name, 
+                                             in_addr_t * dhcp_mask, in_addr_t * dhcp_dns1, in_addr_t * dhcp_dns2, char * username, char * mac );
 
-bool ifconfig_pool_release (struct ifconfig_pool* pool, ifconfig_pool_handle hand, const bool hard);
+bool ifconfig_pool_release (struct ifconfig_pool* pool, ifconfig_pool_handle hand, const bool hard, in_addr_t b, char * username, char * dhcp_mac );
 
 struct ifconfig_pool_persist *ifconfig_pool_persist_init (const char *filename, int refresh_freq);
 void ifconfig_pool_persist_close (struct ifconfig_pool_persist *persist);

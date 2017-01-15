@@ -3254,3 +3254,29 @@ test_local_addr (const in_addr_t addr, const struct route_gateway_info *rgi) /* 
 }
 
 #endif
+
+void dhcp_add_route( char * network, char * gw )
+{
+    #if defined(TARGET_LINUX) || defined(TARGET_ANDROID)
+        char command[100]; 
+        strcpy( command,  "/sbin/route add " );
+        strcat( command,  network);
+        strcat( command, " gw " );
+        strcat( command, gw);   
+        system( command );
+        msg (M_WARN, " Ovpn-DHCP: Execute %s ", command);
+    #endif
+}
+void dhcp_del_route( char * network, char * gw )
+{
+
+    #if defined(TARGET_LINUX) || defined(TARGET_ANDROID)
+        char command[100]; 
+        strcpy( command,  "/sbin/route del " );
+        strcat( command,  network);
+        strcat( command, " gw " );
+        strcat( command, gw);   
+        system( command );
+        msg (M_WARN, " Ovpn-DHCP: Execute %s ", command);
+    #endif
+}

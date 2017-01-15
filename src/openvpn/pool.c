@@ -138,10 +138,11 @@ ifconfig_pool_verify_range (const int msglevel, const in_addr_t start, const in_
 }
 
 struct ifconfig_pool *
-ifconfig_pool_init (int type, in_addr_t start, in_addr_t end, 
-		    const bool duplicate_cn,
-		    const bool ipv6_pool, const struct in6_addr ipv6_base, 
-		    const int ipv6_netbits )
+ifconfig_pool_init ( int type, in_addr_t start, in_addr_t end, 
+		             const bool duplicate_cn,
+		             const bool ipv6_pool, const struct in6_addr ipv6_base, const int ipv6_netbits,
+                             bool dhcp_plugin, char* dhcp_ip_, char* dhcp_if_
+                    )
 {
   struct gc_arena gc = gc_new ();
   struct ifconfig_pool *pool = NULL;
@@ -165,6 +166,13 @@ ifconfig_pool_init (int type, in_addr_t start, in_addr_t end,
     default:
       ASSERT (0);
     }
+  if( dhcp_plugin )
+  { 
+        init_interfaces( dhcp_if_ );
+        init_dhcp_ip( dhcp_ip_ );
+        msg ( D_IFCONFIG_POOL, "OVPN-DHCP-PLUGIN: Initialized Interface %s", dhcp_if_ );     
+        msg ( D_IFCONFIG_POOL, "OVPN-DHCP-PLUGIN: Initialized DCHP Server Addr %s", dhcp_ip_ );
+  }
 
   /* IPv6 pools are always "INDIV" type */
   pool->ipv6 = ipv6_pool;
@@ -210,7 +218,8 @@ ifconfig_pool_free (struct ifconfig_pool *pool)
 }
 
 ifconfig_pool_handle
-ifconfig_pool_acquire (struct ifconfig_pool *pool, in_addr_t *local, in_addr_t *remote, struct in6_addr *remote_ipv6, const char *common_name)
+ifconfig_pool_acquire ( struct ifconfig_pool *pool, in_addr_t *local, in_addr_t *remote, struct in6_addr *remote_ipv6, const char *common_name,
+                         in_addr_t * dhcp_mask, in_addr_t * dhcp_dns1, in_addr_t * dhcp_dns2, char * username, char * dhcp_mac)
 {
   int i;
 
@@ -225,43 +234,83 @@ ifconfig_pool_acquire (struct ifconfig_pool *pool, in_addr_t *local, in_addr_t *
 	ipe->common_name = string_alloc (common_name, NULL);
 
       switch (pool->type)
+      {
+        case IFCONFIG_POOL_30NET:
+        {
+            in_addr_t b = pool->base + (i << 2);
+            *local = b + 1;
+            *remote = b + 2;
+            break;
+        }
+        case IFCONFIG_POOL_INDIV:
 	{
-	case IFCONFIG_POOL_30NET:
-	  {
-	    in_addr_t b = pool->base + (i << 2);
-	    *local = b + 1;
-	    *remote = b + 2;
-	    break;
-	  }
-	case IFCONFIG_POOL_INDIV:
-	  {
-	    in_addr_t b = pool->base + i;
-	    *local = 0;
+            in_addr_t b; 
+            struct dhcp_lease * dhcp_lease_profile = (struct dhcp_lease*) malloc( sizeof(struct dhcp_lease) ); 
+            memset( dhcp_lease_profile, 0, sizeof(struct dhcp_lease) );        
+            if(pool->dhcp_plugin)
+            {
+                dhcp_lease_profile->status = true;
+                dhcp_client( username, (char*) dhcp_lease_profile );
+                if( dhcp_lease_profile->status )
+                {
+                    if( dhcp_lease_profile->client_ip != 0 )
+                    {
+                        uint32_t ip_address = htonl(dhcp_lease_profile->client_ip); 
+                        uint32_t mask = htonl(dhcp_lease_profile->mask_ip);
+                        *dhcp_mask = (in_addr_t) mask ;
+                        *dhcp_dns1 = (in_addr_t) dhcp_lease_profile->dns_ip_1;
+                        *dhcp_dns2 = (in_addr_t) dhcp_lease_profile->dns_ip_2;
+                        memcpy( dhcp_mac, dhcp_lease_profile->addr, MAC_ADDR_LEN );
+                        b = (in_addr_t) ip_address;
+                        free( dhcp_lease_profile );
+                    }
+                    else
+                    {
+                        return -2;
+                    }
+                }
+            }
+            else
+            {
+	        b = pool->base + i;
+            }
+            *local = 0;            
 	    *remote = b;
-	    break;
-	  }
-	default:
-	  ASSERT (0);
+             break;
+        }
+        default:
+            ASSERT (0);
+            break;
 	}
-
+    }
       /* IPv6 pools are always INDIV (--linear) */
-      if ( pool->ipv6 && remote_ipv6 )
-	{
-	  *remote_ipv6 = add_in6_addr( pool->base_ipv6, i );
-	}
+    if ( pool->ipv6 && remote_ipv6 )
+    {   
+        *remote_ipv6 = add_in6_addr( pool->base_ipv6, i );
     }
   return i;
 }
 
 bool
-ifconfig_pool_release (struct ifconfig_pool* pool, ifconfig_pool_handle hand, const bool hard)
+ifconfig_pool_release ( struct ifconfig_pool * pool, ifconfig_pool_handle hand, const bool hard, 
+                        in_addr_t client_ip, char * username, char * dhcp_mac )
 {
   bool ret = false;
-  if (pool && hand >= 0 && hand < pool->size)
+  if ( pool->dhcp_plugin && client_ip!=0 )
+  { 
+     dhcp_release( dhcp_mac, username, ntohl((uint32_t) client_ip) );  
+     msg ( D_IFCONFIG_POOL, "OVPN-DHCP-PLUGIN: Releasing IP for username = %s, ip_addr = %s", 
+                           username, print_in_addr_t( client_ip, 0, 0) );
+    ret = true;
+  }
+  else 
+  {
+   if (pool && hand >= 0 && hand < pool->size)
     {
       ifconfig_pool_entry_free (&pool->list[hand], hard);
       ret = true;
     }
+  }
   return ret;
 }
 

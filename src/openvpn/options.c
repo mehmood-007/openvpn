@@ -466,7 +466,11 @@ static const char usage_message[] =
   "--hash-size r v : Set the size of the real address hash table to r and the\n"
   "                  virtual address table to v.\n"
   "--bcast-buffers n : Allocate n broadcast buffers.\n"
-  "--tcp-queue-limit n : Maximum number of queued TCP output packets.\n"
+  "--tcp-queue-limit n : Maximum number of queued TCP output packets.\n"  
+  "--enable-dhcp-plugin: Enable DHCP Plugin for assigning the ip to road-warriors from DHCP-Server.\n"
+  "--dhcp-server-ip xyz.xyz.xyz.255: Set the dhcp ip, normally it will listen on the broadcast address of the assigned pool.\n"
+  "--dhcp-interface interface-name: Interface (eth0) on which the DHCP interface listen.\n"
+  "--dhcp-tun-ip tun-interface-ip mask-to-be-set-interface: The ip which will be assigned to tun interface, As same Masks is not allowed in P2MP mode.\n"
   "--tcp-nodelay   : Macro that sets TCP_NODELAY socket flag on the server\n"
   "                  as well as pushes it to connecting clients.\n"
   "--learn-address cmd : Run command cmd to validate client virtual addresses.\n"
@@ -1931,9 +1935,12 @@ options_postprocess_verify_ce (const struct options *options, const struct conne
       || string_defined_equal (ce->remote, options->ifconfig_remote_netmask))
     msg (M_USAGE, "--local and --remote addresses must be distinct from --ifconfig addresses");
 
-  if (string_defined_equal (ce->local, options->ifconfig_local)
-      || string_defined_equal (ce->local, options->ifconfig_remote_netmask))
-    msg (M_USAGE, "--local addresses must be distinct from --ifconfig addresses");
+  if(!options->dhcp_plugin)
+  {
+    if ( string_defined_equal ( ce->local, options->ifconfig_local )
+         || string_defined_equal (ce->local, options->ifconfig_remote_netmask) )
+        msg (M_USAGE, "--local addresses must be distinct from --ifconfig addresses");
+  }
 
   if (string_defined_equal (options->ifconfig_local, options->ifconfig_remote_netmask))
     msg (M_USAGE, "local and remote/netmask --ifconfig addresses must be different");
@@ -3023,7 +3030,10 @@ options_string (const struct options *o,
 		     (in_addr_t)0,
 		     (in_addr_t)0,
 		     false,
-		     NULL);
+		     NULL,
+             o->dhcp_plugin,
+             o->tuntap_options.static_tun_ip,
+             o->tuntap_options.static_tun_mask);
       if (tt)
 	tt_local = true;
     }
@@ -5589,7 +5599,25 @@ add_option (struct options *options,
 	    }
 	}
     }
-  else if (streq (p[0], "server-ipv6") && p[1] )
+  else if (streq (p[0], "enable-dhcp"))
+    {
+      options->dhcp_plugin = true;
+      options->tuntap_options.dhcp_plugin = true;
+    }  
+  else if (streq (p[0], "dhcp-interface") && p[1] )
+    {
+      options->dhcp_if_name = p[1];
+    }
+  else if (streq (p[0], "dhcp-server-ip") && p[1] )
+    {
+       options->dhcp_server_ip = p[1];
+    }
+  else if( streq (p[0], "dhcp-tun-ip") && p[1]  )
+    {
+       options->tuntap_options.static_tun_ip = p[1];
+       options->tuntap_options.static_tun_mask = p[2];
+    }
+   else if (streq (p[0], "server-ipv6") && p[1] )
     {
       const int lev = M_WARN;
       struct in6_addr network;

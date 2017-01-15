@@ -1,0 +1,30 @@
+openvpn-dhcp-client
+
+SYNOPSIS
+ 
+A Standalone Module to Provide Ip's to VPN client using centralised DHCP server
+
+
+BUILD
+
+To build openvpn-dhcp-client, you will need to have the dhcp-client
+package installed.
+
+Build with the "make" command.  The module will be named
+openvpn-dhcp-client.so
+
+USAGE
+
+To use this plugin module, add to your OpenVPN config file:
+
+  plugin openvpn-dhcp-client.so interface-name
+
+The required service-type parameter corresponds to
+the name of the dhcp interface.
+
+For example:
+
+CAVEATS
+
+This module will only work on *nix systems ,
+not Windows.

@@ -26,7 +26,8 @@ AM_CFLAGS = \
 	$(TAP_CFLAGS) \
 	$(OPTIONAL_CRYPTO_CFLAGS) \
 	$(OPTIONAL_LZO_CFLAGS) \
-	$(OPTIONAL_PKCS11_HELPER_CFLAGS)
+	$(OPTIONAL_PKCS11_HELPER_CFLAGS) \
+	$(LIBDHCP_CLIENT_CFLAGS)
 if WIN32
 # we want unicode entry point but not the macro
 AM_CFLAGS += -municode -UUNICODE
@@ -120,7 +121,9 @@ openvpn_LDADD = \
 	$(OPTIONAL_CRYPTO_LIBS) \
 	$(OPTIONAL_SELINUX_LIBS) \
 	$(OPTIONAL_SYSTEMD_LIBS) \
-	$(OPTIONAL_DL_LIBS)
+	$(OPTIONAL_DL_LIBS) \
+	$(LIBDHCP_CLIENT_LIBS)
+
 if WIN32
 openvpn_SOURCES += openvpn_win32_resources.rc
 openvpn_LDADD += -lgdi32 -lws2_32 -lwininet -lcrypt32 -liphlpapi -lrpcrt4 -lwinmm

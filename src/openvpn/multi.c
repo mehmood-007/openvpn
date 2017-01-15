@@ -337,14 +337,18 @@ multi_init (struct multi_context *m, struct context *t, bool tcp_mode, int threa
       if ( dev == DEV_TYPE_TUN && t->options.topology == TOP_NET30 )
 	pool_type = IFCONFIG_POOL_30NET;
 
-      m->ifconfig_pool = ifconfig_pool_init (pool_type,
+      m->ifconfig_pool = ifconfig_pool_init (
+                                 pool_type,
 				 t->options.ifconfig_pool_start,
 				 t->options.ifconfig_pool_end,
 				 t->options.duplicate_cn,
 				 t->options.ifconfig_ipv6_pool_defined,
 				 t->options.ifconfig_ipv6_pool_base,
-				 t->options.ifconfig_ipv6_pool_netbits );
-
+				 t->options.ifconfig_ipv6_pool_netbits,
+                                 t->options.dhcp_plugin,
+                                 t->options.dhcp_server_ip,
+                                 t->options.dhcp_if_name
+                                 );
       /* reload pool data from file */
       if (t->c1.ifconfig_pool_persist)
 	ifconfig_pool_read (t->c1.ifconfig_pool_persist, m->ifconfig_pool);
@@ -552,10 +556,16 @@ multi_close_instance (struct multi_context *m,
 	}
 #endif
 
+      char * username = tls_username( mi->context.c2.tls_multi, false );
       schedule_remove_entry (m->schedule, (struct schedule_entry *) mi);
-
-      ifconfig_pool_release (m->ifconfig_pool, mi->vaddr_handle, false);
-      
+      if(  mi->context.options.tuntap_options.dhcp_plugin && mi->context.c2.push_ifconfig_local)
+      {
+        dhcp_del_route( print_in_addr_t( mi->context.c2.push_ifconfig_local, 0, 0 ), 
+                        mi->context.options.tuntap_options.static_tun_ip );
+      }
+      ifconfig_pool_release ( m->ifconfig_pool, mi->vaddr_handle, false, 
+                              mi->context.c2.push_ifconfig_local, username, 
+                              mi->context.c2.dhcp_user_mac );      
       if (mi->did_iroutes)
         {
           multi_del_iroutes (m, mi);
@@ -1267,7 +1277,7 @@ ifconfig_push_constraint_satisfied (const struct context *c)
  * Use an --ifconfig-push directive, if given (static IP).
  * Otherwise use an --ifconfig-pool address (dynamic IP). 
  */
-static void
+static int 
 multi_select_virtual_addr (struct multi_context *m, struct multi_instance *mi)
 {
   struct gc_arena gc = gc_new ();
@@ -1282,7 +1292,10 @@ multi_select_virtual_addr (struct multi_context *m, struct multi_instance *mi)
 	 release dynamic allocation */
       if (mi->vaddr_handle >= 0)
 	{
-	  ifconfig_pool_release (m->ifconfig_pool, mi->vaddr_handle, true);
+          char * username = tls_username( mi->context.c2.tls_multi, false );
+	  ifconfig_pool_release ( m->ifconfig_pool, mi->vaddr_handle, true, 
+                  mi->context.c2.push_ifconfig_local, username, 
+                  mi->context.c2.dhcp_user_mac );
 	  mi->vaddr_handle = -1;
 	}
 
@@ -1307,32 +1320,63 @@ multi_select_virtual_addr (struct multi_context *m, struct multi_instance *mi)
   else if (m->ifconfig_pool && mi->vaddr_handle < 0) /* otherwise, choose a pool address */
     {
       in_addr_t local=0, remote=0;
+      in_addr_t mask=0, dns1=0, dns2=0;
+      char mac[MAC_ADDR_LEN];
       struct in6_addr remote_ipv6;
       const char *cn = NULL;
 
       if (!mi->context.options.duplicate_cn)
 	cn = tls_common_name (mi->context.c2.tls_multi, true);
 
-      CLEAR(remote_ipv6);
-      mi->vaddr_handle = ifconfig_pool_acquire (m->ifconfig_pool, &local, &remote, &remote_ipv6, cn);
-      if (mi->vaddr_handle >= 0)
-	{
-	  const int tunnel_type = TUNNEL_TYPE (mi->context.c1.tuntap);
-	  const int tunnel_topology = TUNNEL_TOPOLOGY (mi->context.c1.tuntap);
+      CLEAR(remote_ipv6); 
+      if( mi->context.options.dhcp_plugin )
+          m->ifconfig_pool->dhcp_plugin = true;
 
+      m->ifconfig_pool->dhcp_if_name = mi->context.options.dhcp_if_name;      
+      m->ifconfig_pool->dhcp_server_ip = mi->context.options.dhcp_server_ip;
+      char * username =  tls_username( mi->context.c2.tls_multi, false );
+      mi->vaddr_handle = ifconfig_pool_acquire ( m->ifconfig_pool, &local, &remote, &remote_ipv6, cn,
+                                                 &mask, &dns1, &dns2, username, &mac[0] );	
+      if ( mi->vaddr_handle >= 0 )
+	{
+	 const int tunnel_type = TUNNEL_TYPE (mi->context.c1.tuntap);
+	 const int tunnel_topology = TUNNEL_TOPOLOGY (mi->context.c1.tuntap);
 	  msg( M_INFO, "MULTI_sva: pool returned IPv4=%s, IPv6=%s", 
 	       print_in_addr_t( remote, 0, &gc ),
 	       (mi->context.options.ifconfig_ipv6_pool_defined
 		? print_in6_addr( remote_ipv6, 0, &gc )
 		: "(Not enabled)") );
-
+            
+          if( mi->context.options.dhcp_plugin )
+           {
+              memcpy( mi->context.c2.dhcp_user_mac, mac, MAC_ADDR_LEN );
+              msg( M_INFO, "MULTI_sva: Ovpn-DHCP returned IPv4=%s, Mask=%s, DNS1=%s, DNS2=%s", 
+                        print_in_addr_t( remote, 0, &gc ), print_in_addr_t( mask, 0, &gc ),  
+	                print_in_addr_t( dns1, 0, &gc ), print_in_addr_t( dns2, 0, &gc ) );
+           }
 	  /* set push_ifconfig_remote_netmask from pool ifconfig address(es) */
 	  mi->context.c2.push_ifconfig_local = remote;
 	  if (tunnel_type == DEV_TYPE_TAP || (tunnel_type == DEV_TYPE_TUN && tunnel_topology == TOP_SUBNET))
 	    {
-	      mi->context.c2.push_ifconfig_remote_netmask = mi->context.options.ifconfig_pool_netmask;
+              /* DHCP-Plugin: storing DNS1, DNS2, MASK */
+              if( mi->context.options.dhcp_plugin )
+              {
+	  
+                mi->context.c2.push_ifconfig_dns1 = dns1;
+                mi->context.c2.push_ifconfig_dns2 = dns2;
+              }
+              else
+              {
+                if(mask)
+                {
+                    mi->context.c2.push_ifconfig_remote_netmask = mask;
+                }
+		else {
+	mi->context.c2.push_ifconfig_remote_netmask = mi->context.options.ifconfig_pool_netmask;				
+		}
+              }
 	      if (!mi->context.c2.push_ifconfig_remote_netmask)
-		mi->context.c2.push_ifconfig_remote_netmask = mi->context.c1.tuntap->remote_netmask;
+		    mi->context.c2.push_ifconfig_remote_netmask = mi->context.c1.tuntap->remote_netmask;
 	    }
 	  else if (tunnel_type == DEV_TYPE_TUN)
 	    {
@@ -1357,7 +1401,12 @@ multi_select_virtual_addr (struct multi_context *m, struct multi_instance *mi)
 		    mi->context.options.ifconfig_ipv6_netbits;
 	      mi->context.c2.push_ifconfig_ipv6_defined = true;
 	    }
-	}
+	}      
+      else if ( mi->vaddr_handle == -2 )
+        {
+	  msg ( D_IFCONFIG_POOL, "OVPN-DHCP-PLUGIN: DHCP Timeout"); 
+          return -1;
+        }
       else
 	{
 	  msg (D_MULTI_ERRORS, "MULTI: no free --ifconfig-pool addresses are available");
@@ -1676,11 +1725,21 @@ multi_connection_established (struct multi_context *m, struct multi_instance *mi
        * Select a virtual address from either --ifconfig-push in --client-config-dir file
        * or --ifconfig-pool.
        */
-      multi_select_virtual_addr (m, mi);
-
-      /* do --client-connect setenvs */
-      multi_client_connect_setenv (m, mi);
-
+      if( multi_select_virtual_addr (m, mi) == -1 )
+      {
+        cc_succeeded = false;
+        cc_succeeded_count = 0;
+      }
+      else 
+      {
+          if(  mi->context.options.tuntap_options.dhcp_plugin )
+          {
+            dhcp_add_route( print_in_addr_t( mi->context.c2.push_ifconfig_local, 0, &gc ), 
+                            mi->context.options.tuntap_options.static_tun_ip );
+          }
+        /* do --client-connect setenvs */
+        multi_client_connect_setenv (m, mi);
+      }      
 #ifdef ENABLE_PLUGIN
       /*
        * Call client-connect plug-in.

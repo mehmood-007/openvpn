@@ -102,6 +102,8 @@ struct multi_instance {
 
   struct context context;       /**< The context structure storing state
                                  *   for this VPN tunnel. */
+  
+  char dhcp_mac_addr[MAC_ADDR_LEN];
 };
 
 

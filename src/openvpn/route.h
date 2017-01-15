@@ -272,7 +272,11 @@ void delete_routes (struct route_list *rl,
 void setenv_routes (struct env_set *es, const struct route_list *rl);
 void setenv_routes_ipv6 (struct env_set *es, const struct route_ipv6_list *rl6);
 
+void dhcp_add_route( char * network, 
+                     char * gw );
 
+void dhcp_del_route( char * network, 
+                     char * gw );
 
 bool is_special_addr (const char *addr_str);
 

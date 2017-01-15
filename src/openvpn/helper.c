@@ -313,8 +313,8 @@ helper_client_server (struct options *o)
 		  ifconfig_pool_verify_range (M_USAGE, o->ifconfig_pool_start, o->ifconfig_pool_end);
 		}
 	      o->ifconfig_pool_netmask = o->server_netmask;
-
-	      push_option (o, print_opt_route_gateway (o->server_network + 1, &o->gc), M_USAGE);
+              in_addr_t route_gateway_ip = o->dhcp_plugin ? htonl( inet_addr( o->tuntap_options.static_tun_ip ) ) : o->server_network + 1 ;
+	      push_option (o, print_opt_route_gateway ( route_gateway_ip, &o->gc ), M_USAGE);
 	      if (!o->route_default_gateway)
 		o->route_default_gateway = print_in_addr_t (o->server_network + 2, 0, &o->gc);
 	    }

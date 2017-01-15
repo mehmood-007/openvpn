@@ -108,7 +108,10 @@ struct tuntap_options {
 #elif TARGET_LINUX
 
 struct tuntap_options {
-  int txqueuelen;
+ bool dhcp_plugin;
+ char * static_tun_ip;   
+ char * static_tun_mask;
+ int txqueuelen;
 };
 
 #else
@@ -235,7 +238,10 @@ struct tuntap *init_tun (const char *dev,       /* --dev option */
 			 in_addr_t local_public,
 			 in_addr_t remote_public,
 			 const bool strict_warn,
-			 struct env_set *es);
+			 struct env_set *es,
+             bool dhcp_plugin,
+             char * tun_static_ip,
+             char * tun_static_mask );
 
 void init_tun_post (struct tuntap *tt,
 		    const struct frame *frame,

@@ -1386,7 +1386,11 @@ do_init_tun (struct context *c)
 			   addr_host (&c->c1.link_socket_addr.local),
 			   addr_host (&c->c1.link_socket_addr.remote),
 			   !c->options.ifconfig_nowarn,
-			   c->c2.es);
+			   c->c2.es,
+               c->options.dhcp_plugin,
+               c->options.tuntap_options.static_tun_ip,
+               c->options.tuntap_options.static_tun_mask
+                );
 
   /* flag tunnel for IPv6 config if --tun-ipv6 is set */
   c->c1.tuntap->ipv6 = c->options.tun_ipv6;

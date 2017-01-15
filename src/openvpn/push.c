@@ -252,6 +252,7 @@ send_push_reply (struct context *c)
   const int extra = 84; /* extra space for possible trailing ifconfig and push-continuation */
   const int safe_cap = BCAP (&buf) - extra;
   bool push_sent = false;
+  bool dhcp_plugin_push = false;
 
   msg( M_INFO, "send_push_reply(): safe_cap=%d", safe_cap );
 
@@ -294,8 +295,22 @@ send_push_reply (struct context *c)
 	      msg (M_WARN, "--push option is too long");
 	      goto fail;
 	    }
-	  buf_printf (&buf, ",%s", e->option);
-	}
+          // IF DHCP-PLUGIN..........
+          if (strstr(e->option, "dhcp-option")==NULL){
+              buf_printf (&buf, ",%s", e->option);  
+          }
+        
+          
+          
+          if(!dhcp_plugin_push){
+             dhcp_plugin_push = true;
+             if (c->c2.push_ifconfig_dns1){
+                buf_printf (&buf, ",dhcp-option DNS %s", inet_ntoa( *(struct in_addr*)&(c->c2.push_ifconfig_dns1)));
+                buf_printf (&buf, ",dhcp-option DNS %s", inet_ntoa( *(struct in_addr*)&(c->c2.push_ifconfig_dns2)));
+                memset(&c->c2.push_ifconfig_dns1,0,sizeof(c->c2.push_ifconfig_dns1));
+             }
+           }
+        }
       e = e->next;
     }
 

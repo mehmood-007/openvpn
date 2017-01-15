@@ -453,8 +453,10 @@ struct context_2
 #ifdef ENABLE_CLIENT_NAT
   in_addr_t push_ifconfig_local_alias;
 #endif
-
-  bool            push_ifconfig_ipv6_defined;
+  in_addr_t push_ifconfig_dns1;
+  in_addr_t push_ifconfig_dns2;
+  char dhcp_user_mac[MAC_ADDR_LEN];
+  bool push_ifconfig_ipv6_defined;
   struct in6_addr push_ifconfig_ipv6_local;
   int             push_ifconfig_ipv6_netbits;
   struct in6_addr push_ifconfig_ipv6_remote;

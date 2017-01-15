@@ -683,6 +683,16 @@ if test -z "${LIBPAM_LIBS}"; then
 		[LIBPAM_LIBS="-lpam"]
 	)
 fi
+AC_ARG_VAR([LIBDHCP_CLIENT_CFLAGS], [C-compiler flags for libdhcp-client])
+AC_ARG_VAR([LIBDHCP_CLIENT_LIBS], [linker flags for libdhcp-client])
+if test -z "${LIBDHCP_CLIENT_LIBS}"; then
+    AC_MSG_NOTICE([Enabling DHCP-Client Plugin......])
+	[LIBDHCP_CLIENT_LIBS="-l:openvpn-plugin-dhcp-client.so"]
+        [LIBDHCP_CLIENT_CFLAGS="-L\$(abs_top_builddir)/src/plugins/dhcp-client/.libs/"]
+fi
+
+PLUGIN_DHCP_CLIENT_CFLAGS="${LIBDHCP_CLIENT_CFLAGS}"
+PLUGIN_DHCP_CLIENT_LIBS="${LIBDHCP_CLIENT_LIBS}"
 
 case "${with_mem_check}" in
 	valgrind)
@@ -1114,6 +1124,8 @@ AC_SUBST([OPTIONAL_PKCS11_HELPER_LIBS])
 
 AC_SUBST([PLUGIN_AUTH_PAM_CFLAGS])
 AC_SUBST([PLUGIN_AUTH_PAM_LIBS])
+AC_SUBST([PLUGIN_DHCP_CLIENT_CFLAGS])
+AC_SUBST([PLUGIN_DHCP_CLIENT_LIBS])
 
 AM_CONDITIONAL([WIN32], [test "${WIN32}" = "yes"])
 AM_CONDITIONAL([GIT_CHECKOUT], [test "${GIT_CHECKOUT}" = "yes"])
@@ -1172,6 +1184,7 @@ AC_CONFIG_FILES([
 	src/plugins/Makefile
 	src/plugins/auth-pam/Makefile
 	src/plugins/down-root/Makefile
+	src/plugins/dhcp-client/Makefile
 	tests/Makefile
         tests/unit_tests/Makefile
         tests/unit_tests/plugins/Makefile

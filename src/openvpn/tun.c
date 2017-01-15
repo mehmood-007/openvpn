@@ -457,8 +457,11 @@ init_tun (const char *dev,       /* --dev option */
 	  const char *ifconfig_ipv6_remote_parm,    /* --ifconfig parm 2 IPv6 */
 	  in_addr_t local_public,
 	  in_addr_t remote_public,
-	  const bool strict_warn,
-	  struct env_set *es)
+	  const bool strict_warn,	  
+          struct env_set *es,
+      bool dhcp_plugin,
+      char * tun_static_ip,
+      char * tun_static_mask )
 {
   struct gc_arena gc = gc_new ();
   struct tuntap *tt;
@@ -481,27 +484,18 @@ init_tun (const char *dev,       /* --dev option */
       /*
        * Convert arguments to binary IPv4 addresses.
        */
-
-      tt->local = getaddr (
-			   GETADDR_RESOLVE
-			   | GETADDR_HOST_ORDER
-			   | GETADDR_FATAL_ON_SIGNAL
-			   | GETADDR_FATAL,
-			   ifconfig_local_parm,
-			   0,
-			   NULL,
-			   NULL);
-
-      tt->remote_netmask = getaddr (
-				    (tun ? GETADDR_RESOLVE : 0)
-				    | GETADDR_HOST_ORDER
-				    | GETADDR_FATAL_ON_SIGNAL
-				    | GETADDR_FATAL,
-				    ifconfig_remote_netmask_parm,
-				    0,
-				    NULL,
-				    NULL);
-
+      tt->local = dhcp_plugin ? getaddr ( GETADDR_RESOLVE | GETADDR_HOST_ORDER | 
+                                          GETADDR_FATAL_ON_SIGNAL | GETADDR_FATAL, 
+                                          tun_static_ip, 0, NULL, NULL ) : 
+                                getaddr ( GETADDR_RESOLVE | GETADDR_HOST_ORDER | 
+                                          GETADDR_FATAL_ON_SIGNAL | GETADDR_FATAL,
+			                              ifconfig_local_parm, 0, NULL, NULL ) ;
+      tt->remote_netmask = dhcp_plugin ? getaddr ( GETADDR_RESOLVE | GETADDR_HOST_ORDER | 
+                                          GETADDR_FATAL_ON_SIGNAL | GETADDR_FATAL, 
+                                          tun_static_mask, 0, NULL, NULL ) : 
+                                 getaddr ( GETADDR_RESOLVE | GETADDR_HOST_ORDER | 
+                                          GETADDR_FATAL_ON_SIGNAL | GETADDR_FATAL,
+			                              ifconfig_remote_netmask_parm, 0, NULL, NULL ) ;
       /*
        * Look for common errors in --ifconfig parms
        */

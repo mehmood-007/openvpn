@@ -28,6 +28,7 @@
 # INSTALL targets:
 AUTOMAKE_OPTIONS = foreign 1.9
 ACLOCAL_AMFLAGS = -I m4
+lib_dir = "/usr/local/lib"
 
 MAINTAINERCLEANFILES = \
 	config.log config.status \
@@ -48,6 +49,13 @@ EXTRA_DIST = \
 	debug
 
 .PHONY: config-version.h
+
+install-exec-hook:
+	@if ! [ -f $(lib_dir)/openvpn-plugin-dhcp-client.so ]; then \
+		$(LN_S) $(lib_dir)/openvpn/plugins/openvpn-plugin-dhcp-client.so $(lib_dir)/openvpn-plugin-dhcp-client.so; \
+	fi
+clean:
+	rm -rf /usr/local/lib/openvpn-plugin-dhcp-client.so
 
 if GIT_CHECKOUT
 BUILT_SOURCES = \
