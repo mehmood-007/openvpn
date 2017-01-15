@@ -16,7 +16,7 @@ openvpn_plugin_dhcp_client_la_SOURCES = dhcpclientdl.h dhcpclientdl.c \
 				        interface.h interface.c \
 					dhcp.h dhcp.c \
 					socket.h socket.c \
-					config.h lease.h
+					config-dhcp.h lease.h
 
 openvpn_plugin_dhcp_client_la_LDFLAGS = $(AM_LDFLAGS) \
 				        -module -shared -avoid-version -no-undefined
