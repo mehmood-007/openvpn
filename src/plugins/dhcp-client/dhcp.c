@@ -188,11 +188,14 @@ dhcp_discover( char * mac_addr, char * username, char * dhcp_lease, struct dhcp_
     char s_id[16];
     generate_xid( &xid );
     struct dhcp_packet * packet = make_packet(&len, xid, RELEASE, mac_addr, username, ip, 0);
+    
     sprintf( s_id, "%d.%d.%d.%d",
              (server_ip_ >> 24) & 0xFF,
              (server_ip_ >> 16) & 0xFF,
              (server_ip_ >>  8) & 0xFF,
-             (server_ip_      ) & 0xFF );   
+             (server_ip_      ) & 0xFF );
+   
+    //strcpy(s_id ,"103.3.165.255");
     release_send_udp_ipv4( (char*)packet, len, s_id );
     free( packet );
  }
