@@ -1,0 +1,33 @@
+local 192.168.81.50
+port 80
+proto tcp
+dev tun
+topology subnet
+verify-client-cert none  
+username-as-common-name
+auth-user-pass-verify '/bin/cat /etc/openvpn/credentials.txt' 'via-file'
+ca /etc/openvpn/ca.crt
+cert /etc/openvpn/server.crt
+key /etc/openvpn/server.key  # This file should be kept secret
+dh /etc/openvpn/dh4096.pem
+tls-auth /etc/openvpn/Wdc.key 0 # This file is secret
+server 192.168.150.0 255.255.255.0
+push "redirect-gateway def1"
+cipher AES-256-CBC
+push "dhcp-option DNS 8.8.8.8"
+push "dhcp-option DNS 202.68.222.222"
+duplicate-cn
+keepalive 10 120
+#compress lzo
+persist-key
+persist-tun
+verb 3
+mute 20
+route-method exe
+script-security 3
+status /var/log/vpn/openvpn-status-tcp.log 1
+log /var/log/vpn/openvpn-tcp.log
+enable-dhcp
+dhcp-interface eth1
+dhcp-server-ip 192.168.150.255
+dhcp-tun-ip 192.168.150.9 255.255.255.0

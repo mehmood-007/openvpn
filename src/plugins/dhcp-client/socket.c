@@ -236,7 +236,6 @@ send_udp_ipv4( char* packet, int len, int dhcp_socket, char* server_ip )
     dhcp_to.sin_family = AF_INET;
     dhcp_to.sin_port = htons( IPv4_SERVER_PORT );
     char * dst_ip = server_ip ? server_ip : dhcp_ip_;
-    fprintf(err_dhcp, "OVPN-DHCP: Destination-ip %s", dst_ip);
     inet_aton( dst_ip , &(dhcp_to.sin_addr.s_addr));
     if ( dhcp_socket == -1) 
     {

@@ -37,8 +37,8 @@
 #include "otime.h"
 
 #include "memdbg.h"
-
 #if P2MP
+
 
 static void
 ifconfig_pool_entry_free (struct ifconfig_pool_entry *ipe, bool hard)
@@ -141,7 +141,7 @@ struct ifconfig_pool *
 ifconfig_pool_init ( int type, in_addr_t start, in_addr_t end, 
 		             const bool duplicate_cn,
 		             const bool ipv6_pool, const struct in6_addr ipv6_base, const int ipv6_netbits,
-                             bool dhcp_plugin, char* dhcp_ip_, char* dhcp_if_
+                             bool dhcp_plugin, char * dhcp_so_path, char* dhcp_ip_, char* dhcp_if_
                     )
 {
   struct gc_arena gc = gc_new ();
@@ -154,7 +154,7 @@ ifconfig_pool_init ( int type, in_addr_t start, in_addr_t end,
   pool->duplicate_cn = duplicate_cn;
 
   switch (type)
-    {
+   {
     case IFCONFIG_POOL_30NET:
       pool->base = start & ~3;
       pool->size = (((end | 3) + 1) - pool->base) >> 2;
@@ -165,14 +165,24 @@ ifconfig_pool_init ( int type, in_addr_t start, in_addr_t end,
       break;
     default:
       ASSERT (0);
-    }
-  if( dhcp_plugin )
-  { 
-        init_interfaces( dhcp_if_ );
-        init_dhcp_ip( dhcp_ip_ );
+   }
+  
+    if( dhcp_plugin )
+    {
+        dhcp_plugin_interface dhcp_init_if;
+        dhcp_plugin_ip dhcp_init_ip;
+        handle = dlopen(dhcp_so_path, RTLD_LAZY);
+        if (!handle) {
+                fprintf(stderr, "%s\n", dlerror());
+                exit(EXIT_FAILURE);
+        }
+        dhcp_init_if = dlsym(handle, "init_interfaces");
+        dhcp_init_ip = dlsym(handle, "init_dhcp_ip");
+        (*dhcp_init_if)(dhcp_if_);
+        (*dhcp_init_ip)(dhcp_ip_);
         msg ( D_IFCONFIG_POOL, "OVPN-DHCP-PLUGIN: Initialized Interface %s", dhcp_if_ );     
         msg ( D_IFCONFIG_POOL, "OVPN-DHCP-PLUGIN: Initialized DCHP Server Addr %s", dhcp_ip_ );
-  }
+    }
 
   /* IPv6 pools are always "INDIV" type */
   pool->ipv6 = ipv6_pool;
@@ -227,7 +237,9 @@ ifconfig_pool_acquire ( struct ifconfig_pool *pool, in_addr_t *local, in_addr_t 
    {
         struct dhcp_lease * dhcp_lease_profile = (struct dhcp_lease*) malloc( sizeof(struct dhcp_lease) ); 
         memset( dhcp_lease_profile, 0, sizeof(struct dhcp_lease) );                
-        dhcp_client( username, (char*) dhcp_lease_profile );
+        dhcp_plugin_client dhcp_client;
+        dhcp_client = dlsym(handle, "dhcp_client");
+        (*dhcp_client)(username, (char*) dhcp_lease_profile);
         if( dhcp_lease_profile->status )
         {
                 if( dhcp_lease_profile->client_ip != 0 )
@@ -299,7 +311,9 @@ ifconfig_pool_release ( struct ifconfig_pool * pool, ifconfig_pool_handle hand, 
   bool ret = false;
   if ( pool->dhcp_plugin && client_ip!=0 )
   { 
-     dhcp_release( dhcp_mac, username, ntohl((uint32_t) client_ip) );  
+     dhcp_plugin_release dhcp_rel;
+     dhcp_rel = dlsym(handle, "dhcp_release");
+     (*dhcp_rel)( dhcp_mac, username, ntohl((uint32_t) client_ip));
      msg ( D_IFCONFIG_POOL, "OVPN-DHCP-PLUGIN: Releasing IP for username = %s, ip_addr = %s", 
                            username, print_in_addr_t( client_ip, 0, 0) );
     ret = true;

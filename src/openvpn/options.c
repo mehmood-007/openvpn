@@ -5599,9 +5599,10 @@ add_option (struct options *options,
 	    }
 	}
     }
-  else if (streq (p[0], "enable-dhcp"))
+  else if (streq (p[0], "enable-dhcp") && p[1])
     {
       options->dhcp_plugin = true;
+      options->dhcp_so_path = p[1];
       options->tuntap_options.dhcp_plugin = true;
     }  
   else if (streq (p[0], "dhcp-interface") && p[1] )
