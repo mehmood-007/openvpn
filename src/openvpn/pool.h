@@ -68,10 +68,12 @@ struct ifconfig_pool_persist
   bool fixed;
 };
 
+void * handle;
+
 typedef int ifconfig_pool_handle;
 
 struct ifconfig_pool *ifconfig_pool_init ( int type, in_addr_t start, in_addr_t end, const bool duplicate_cn, const bool
-ipv6_pool, const struct in6_addr ipv6_base, const int ipv6_netbits, bool dhcp_plugin, char* dhcp_ip_, char* dhcp_if_ );
+ipv6_pool, const struct in6_addr ipv6_base, const int ipv6_netbits, bool dhcp_plugin, char* dhcp_so_path, char* dhcp_ip_, char* dhcp_if_ );
 
 void ifconfig_pool_free (struct ifconfig_pool *pool);
 

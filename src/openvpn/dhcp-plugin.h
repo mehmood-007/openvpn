@@ -2,9 +2,17 @@
 #define __DHCP_PLUGIN_H__
 
 #include <stdint.h>
+#include <dlfcn.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 #define DNS_NAME_LEN 100
 #define MAC_ADDR_LEN 6
+
+typedef void (*dhcp_plugin_interface)(char*);
+typedef void (*dhcp_plugin_ip)(char*);
+typedef void (*dhcp_plugin_client) ( char*, char* );
+typedef void (*dhcp_plugin_release) ( char*, char*, uint32_t );
 
 struct dhcp_lease 
 {    
@@ -18,7 +26,6 @@ struct dhcp_lease
     uint32_t renew_time;
     char addr[MAC_ADDR_LEN];
     bool status;
- //   dhcp_lease * next;
 };
 
 #endif /* __DHCP_PLUGIN_H__ */

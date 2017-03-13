@@ -346,10 +346,8 @@ multi_init (struct multi_context *m, struct context *t, bool tcp_mode, int threa
 				 t->options.ifconfig_ipv6_pool_base,
 				 t->options.ifconfig_ipv6_pool_netbits,
                                  t->options.dhcp_plugin,
-                                 t->options.dhcp_so_path,       
                                  t->options.dhcp_server_ip,
                                  t->options.dhcp_if_name
-                                        
                                  );
       /* reload pool data from file */
       if (t->c1.ifconfig_pool_persist)

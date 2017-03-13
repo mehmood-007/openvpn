@@ -247,9 +247,10 @@ struct options
 
   bool mlock;
   bool dhcp_plugin;
-  char * dhcp_if_name;
-  char * dhcp_server_ip;
-  char * dhcp_tun_ip;
+  char *dhcp_so_path;
+  char *dhcp_if_name;
+  char *dhcp_server_ip;
+  char *dhcp_tun_ip;
   int keepalive_ping;           /* a proxy for ping/ping-restart */
   int keepalive_timeout;
 
