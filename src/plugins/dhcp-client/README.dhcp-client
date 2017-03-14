@@ -17,14 +17,11 @@ USAGE
 
 To use this plugin module, add to your OpenVPN config file:
 
-  plugin openvpn-dhcp-client.so interface-name
+  enable-dhcp openvpn-dhcp-client.so 
+  dhcp-interface name-of-dhcp-interface
+  dhcp-server-ip bradcast-ip-of-dhcp-server
+  dhcp-tun-ip ip-assigned-to-tun[0-9]-interface mask-to-tun-interface
 
-The required service-type parameter corresponds to
-the name of the dhcp interface.
+The required service-type parameter corresponds to the name of the dhcp interface, broadcast-ip, ip-will-assigned-to-tun.
 
-For example:
-
-CAVEATS
-
-This module will only work on *nix systems ,
-not Windows.
+This module will only work on *nix systems ,not Windows.

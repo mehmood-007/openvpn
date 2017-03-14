@@ -1,10 +1,12 @@
 #include "dhcp.h"
 
+/* generate random xid, while will be used throughout the client-server communication of DHCP*/
 void 
 generate_xid( uint32_t * xid )
 {
   *xid = rand();
 }
+/* initiating dhcp-discover */
 void 
 init_dhcp(char * addr, char * username, char * dhcp_lease)
 {
@@ -15,6 +17,7 @@ init_dhcp(char * addr, char * username, char * dhcp_lease)
     dhcp_discover( addr, username, dhcp_lease, dhcp_profile_t );
     free(dhcp_profile_t);
 }
+/* preparing options, dhcp-param for creating dhcp-packet */
 int 
 gen_options( struct dhcp_packet * packet, char * username, 
              char * addr, STATE next_state, uint32_t client_ip, 
@@ -55,8 +58,9 @@ gen_options( struct dhcp_packet * packet, char * username,
     int len = sizeof( struct dhcp_packet ) - sizeof( packet->options ) + pos;
     return len;
 }
+/*set TLV for client-id in dhcp-packet */
 int 
-gen_option_client_identifier( uint8_t * options, int pos, char * addr )
+gen_option_client_identifier( uint8_t* options, int pos, char* addr )
 {
     int len = 7;
     uint8_t htype = 1;
@@ -66,8 +70,9 @@ gen_option_client_identifier( uint8_t * options, int pos, char * addr )
     memcpy( options + pos, addr, len );
     return pos + ( len - 1);    
 }
+/*setting dhcp-state (discover, request, release) */
 int 
-gen_option_message_type(uint8_t *options, int pos, STATE next_state)
+gen_option_message_type(uint8_t* options, int pos, STATE next_state)
 {
     options[pos++] = OPTION_MESSAGETYPE;
     options[pos++] = 1;
@@ -88,6 +93,7 @@ gen_option_message_type(uint8_t *options, int pos, STATE next_state)
     }
     return pos;
 }
+/* set username or hostname for dhcp-request poacket */
 int 
 gen_option_host_name(uint8_t *options, int pos, char * username)
 {
@@ -97,17 +103,9 @@ gen_option_host_name(uint8_t *options, int pos, char * username)
     memcpy(options + pos, username, len);
     return pos + len;
 }
+/* set dhcp-options list for requesting paramaetees in  dhcp-request packet */
 int 
-add_option_least_time( uint8_t * options, int pos )
-{
-    int len = 4;
-    uint32_t lease_time = ntohl(0x00000001);
-    options[pos++] = OPTION_LEASETIME;
-    options[pos++] = len;
-    memcpy( options + pos, &lease_time, len );
-    return pos + len;
-}
-int gen_option_parameter_request_list(uint8_t *options, int pos)
+gen_option_parameter_request_list(uint8_t *options, int pos)
 {
     options[pos++] = OPTION_PARAMETERREQUESTLIST;
     char *len = options + pos++;
@@ -121,6 +119,7 @@ int gen_option_parameter_request_list(uint8_t *options, int pos)
  
     return pos;
 }
+/* set dhcp-options server-ip-address for dhcp-request, dhcp-release */
 int 
 gen_option_server_id( uint8_t *options, int pos, uint32_t server_ip )
 {
@@ -129,6 +128,7 @@ gen_option_server_id( uint8_t *options, int pos, uint32_t server_ip )
     *(uint32_t*)(options + pos) = server_ip;
     return pos + 4;
 }
+/* set dhcp-options client-ip-address for dhcp-request, dhcp-release */
 int 
 gen_option_ip_address( uint8_t * options, int pos, uint32_t client_ip )
 {
@@ -137,6 +137,7 @@ gen_option_ip_address( uint8_t * options, int pos, uint32_t client_ip )
     *(uint32_t*)(options + pos) = client_ip;
     return pos + 4;
 }
+/* responsible for creating DHCP packet */
 static struct 
 dhcp_packet* make_packet( int *len, uint32_t xid, STATE next_state, char * mac_addr, char * username, uint32_t client_ip, uint32_t server_ip )
 {
@@ -158,6 +159,7 @@ dhcp_packet* make_packet( int *len, uint32_t xid, STATE next_state, char * mac_a
     *len = gen_options ( packet, username, mac_addr, next_state, client_ip, server_ip);
     return packet;
 }
+/* sending DHCP-Discover packet to DHCP-Server */
 void 
 dhcp_discover( char * mac_addr, char * username, char * dhcp_lease, struct dhcp_profile * dhcp_profile_t )
 {
@@ -173,14 +175,13 @@ dhcp_discover( char * mac_addr, char * username, char * dhcp_lease, struct dhcp_
     struct dhcp_packet * packet = make_packet(&len, dhcp_profile_t->xid, dhcp_profile_t->next_state, mac_addr, username, 0, dhcp_profile_t->ack_lease.server_ip);
     send_packet( (char*)packet, len, dhcp_profile_t->listen_fd );
     free( packet );
-  //  fprintf( err_dhcp, "OVPN-DHCP: DHCP DISCOVER Send!\n" );
 
     dhcp_profile_t->next_state = OFFER;
-   // fprintf( err_dhcp, "OVPN-DHCP: DHCP Offering....\n" );
     dhcp_offer( mac_addr, username, dhcp_lease, dhcp_profile_t);
 }
- void 
- dhcp_release( char * mac_addr, char * username , uint32_t ip )
+/* releasing ip which were assigned from dhcp-server */
+void 
+dhcp_release( char * mac_addr, char * username , uint32_t ip )
  {
     int len;
     uint32_t xid;
@@ -198,6 +199,7 @@ dhcp_discover( char * mac_addr, char * username, char * dhcp_lease, struct dhcp_
     release_send_udp_ipv4( (char*)packet, len, s_id );
     free( packet );
  }
+/* validated packet that if the packet meet the rules defined in RFC2131 */
 int 
 check_packet( struct dhcp_packet * packet, char * addr, uint32_t xid )
 {
@@ -225,8 +227,9 @@ check_packet( struct dhcp_packet * packet, char * addr, uint32_t xid )
 
     return 1;
 }
+/* Processing dhcp lease and assign parse dhcp-information according to RFC2131 */
 void 
-process_lease(struct lease* lease, struct dhcp_packet *packet)
+process_lease(struct lease* lease, struct dhcp_packet* packet)
 {
     lease->client_ip = packet->yiaddr;
     uint8_t * p = packet->options + 4;
@@ -275,9 +278,11 @@ process_lease(struct lease* lease, struct dhcp_packet *packet)
     if (lease->renew_time == 0)
         lease->renew_time = lease->lease_time / 2;
 }
+/* sending dhcp-offer to DHCP-Server */
 void  
 dhcp_offer( char * addr, char * username, char * dhcp_lease, struct dhcp_profile * dhcp_profile_t )
 {
+    /* As we haven't receive the offer from DHCP than, Bailout */
     if ( dhcp_profile_t->next_state != OFFER ) 
     {
         fprintf(err_dhcp, "State is not OFFER!\n");
@@ -286,6 +291,7 @@ dhcp_offer( char * addr, char * username, char * dhcp_lease, struct dhcp_profile
     struct dhcp_packet *packet = malloc(sizeof(struct dhcp_packet));
     memset(packet, 0, sizeof(struct dhcp_packet));
     int valid = 0;
+    /* request dhcp-packet till we get the desired dhcp-packet */
     while ( !valid )
     {
         int len = recv_packet((char*)packet, sizeof(struct dhcp_packet), dhcp_profile_t->listen_fd );
@@ -293,10 +299,11 @@ dhcp_offer( char * addr, char * username, char * dhcp_lease, struct dhcp_profile
         {
             if ( dhcp_profile_t->timeout_count-- ) /* timeout */
             {
+                /* set dhcp-packet state to dhcp-discover and send to dhcp-server */
                 dhcp_profile_t->next_state = DISCOVER;
                 dhcp_discover( addr, username, dhcp_lease, dhcp_profile_t );
                 return;
-            } 
+            }
             else 
             {
                 fprintf(err_dhcp, "OVPN-DHCP: Error in getting dhcp_offer.......\n");
@@ -304,29 +311,33 @@ dhcp_offer( char * addr, char * username, char * dhcp_lease, struct dhcp_profile
                 return;                
             }
         }
+        /* vaildate dhcp-packet if a vaild is received proceed to further otherwise bailout */
         valid = check_packet(packet, addr, dhcp_profile_t->xid);
     }
-   // fprintf(err_dhcp, "OVPN-DHCP: Processing DHCP-Lease.......\n");
     process_lease( &dhcp_profile_t->ack_lease, packet );	
     server_id = dhcp_profile_t->ack_lease.server_ip ;
+    /* set retry count for DHCP-server */
     dhcp_profile_t->timeout_count = TIMEOUT_RETRY_TIMES;
     dhcp_profile_t->next_state = REQUEST;
     free( packet );
+    /* send  */
     dhcp_request( addr, username, dhcp_lease, dhcp_profile_t);
 }
 void 
 dhcp_request( char * mac_addr, char * username, char * dhcp_lease, struct dhcp_profile * dhcp_profile_t )
 {
+    int len;
+    
+    /* if not receive the desired response from the dhcp-packet */
     if (dhcp_profile_t->next_state != REQUEST) 
     {
         fprintf(err_dhcp, "OVPN-DHCP: State is not REQUEST!\n");
         free_socket( dhcp_profile_t->listen_fd );
         return;
     }
-   // fprintf(err_dhcp, "OVPN-DHCP: Sending DHCP-Request.........\n");
-
-    int len;
+    /* create dhcp-packet from xid, dhcp-state, hw_addr, cid, sid */
     struct dhcp_packet * packet = make_packet( &len, dhcp_profile_t->xid, dhcp_profile_t->next_state , mac_addr, username, dhcp_profile_t->ack_lease.client_ip, dhcp_profile_t->ack_lease.server_ip);
+    /* send created packet to dhcp-server */
     send_packet( (char*)packet, len, dhcp_profile_t->listen_fd );
     free(packet);
 
@@ -338,11 +349,13 @@ dhcp_ack( char * addr, char * username, char * dhcp_lease_t, struct dhcp_profile
 {
     int valid = 0;
     int dhcp_err_ = 0;
+    /* if not receive the desired response from the dhcp-packet */
     if (dhcp_profile_t->next_state != ACK) 
     {
         fprintf(err_dhcp, "OVPN-DHCP: State is not ACK!\n");
         return;
     }
+    /* allocate memory for sending packet */
     struct dhcp_packet * packet = malloc(sizeof(struct dhcp_packet));
     memset(packet, 0, sizeof(struct dhcp_packet));
     while (!valid) 
@@ -350,9 +363,9 @@ dhcp_ack( char * addr, char * username, char * dhcp_lease_t, struct dhcp_profile
         int len = recv_packet((char*)packet, sizeof(struct dhcp_packet), dhcp_profile_t->listen_fd);
         if (len < 0) /* timeout */ 
         {
-            if (dhcp_profile_t->timeout_count--) 
-            {
-                dhcp_profile_t->next_state = REQUEST;
+            if (dhcp_profile_t->timeout_count--)  /* Request DHCP-Server and wait for twice,*/ 
+            {                                     /* if do not get response than bailout */         
+                dhcp_profile_t->next_state = REQUEST; /* set next-state of DHCP to request  */
                 dhcp_request( addr, username, dhcp_lease_t, dhcp_profile_t);
                 return;    
             } 
@@ -363,21 +376,27 @@ dhcp_ack( char * addr, char * username, char * dhcp_lease_t, struct dhcp_profile
                 break;                                    
             }
         }
+        /* vaildate dhcp-packet if a vaild is received proceed to further otherwise bailout */
         valid = check_packet(packet, addr, dhcp_profile_t->xid);
     }
     if( dhcp_err_ == 0 )
     {
+        /* get leasing parameters received from the dhcp-server*/
         process_lease(&dhcp_profile_t->ack_lease, packet);        	
-        create_dhcp_profile( (struct dhcp_lease*)dhcp_lease_t, dhcp_profile_t->ack_lease, addr );
+        /* save received the dhcp-parameters in struct, for main-openvpn fucntion ip-pool-acquire   */
+        create_dhcp_profile( (struct dhcp_lease*)dhcp_lease_t, dhcp_profile_t->ack_lease, addr ); 
     }
     else 
     {
+        /* create lease structure and set status to false as we haven't receive what we want */
        struct dhcp_lease * dhcp_lease_tt = (struct dhcp_lease*) dhcp_lease_t;
        dhcp_lease_tt->status = false;
     }
+    /* releasing resources  */
     free( packet );
     free_socket( dhcp_profile_t->listen_fd );
 }
+/* storing the param recv from dhcp-server to pointer */
 void
 create_dhcp_profile( struct dhcp_lease * dhcp_profile, struct lease lease, char * addr )
 {
