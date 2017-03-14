@@ -5,6 +5,7 @@
 
 #define DNS_NAME_LEN 100
 
+/* param structure dhcp client */
 struct lease {
     uint32_t server_ip;
 	
@@ -24,16 +25,10 @@ struct lease {
 	
     uint32_t renew_time;
 	
-    uint16_t portset_index;
+    uint16_t portset_index; /* Future Use: bits */
 	
-    uint16_t portset_mask;
+    uint16_t portset_mask; /* Future Use: bits */
 };
-
-
-
-void save_lease( struct lease* lease, char * addr,  char * username );
-
-int load_lease(struct lease* lease, char * addr, char * username);
 
 #define DEFAULT_LEASE_PATH "/var/lib/open-dhcp/"
 

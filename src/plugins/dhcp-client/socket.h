@@ -70,13 +70,11 @@ struct sockaddr_in servaddr;
 #define RECV_TIMEOUT_SEC 3
 #define BUF_LEN 2000
 
+static struct timeval base;
+
 char buf[BUF_LEN];
 
-//int ipv4_fd;
-
 int ipv6_fd;
-
-//int send4_fd;
 
 int send6_fd;
 

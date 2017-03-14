@@ -12,7 +12,7 @@ struct sockaddr_in6 dest;/* server_addr */
 struct sockaddr_in6 src;/* local_addr */
 
 int daemon_dhcp;
-FILE * err_dhcp;
+FILE * err_dhcp; /* stderr FD */
 char * dhcp_server_ip;
 
 #define DAEMON_LOG "/dev/null"
@@ -24,7 +24,5 @@ typedef enum {
 } MODE;
 
 extern MODE mode;
-
-
 
 #endif /* __CONFIG_H__ */

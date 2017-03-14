@@ -1,5 +1,5 @@
 #include "socket.h"
-
+/* initialize DGRAM socket */
 int  
 init_socket( void )
 {
@@ -7,25 +7,29 @@ init_socket( void )
 	struct timeval timeout;
 	timeout.tv_sec = RECV_TIMEOUT_SEC;
 	timeout.tv_usec = 0;
-
+        
 	if ( mode == IPv4 ) 
         {
+        /* initialize file-descriptors to DGRAM Socket */
         if ((listen_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP))==-1) 
         {
             perror("dhcp_socket/socket");
             exit(1);
         }
         int flag = 1;
+        /* set reuse addr to file-descriptors DGRAM socket */
         if (setsockopt ( listen_fd, SOL_SOCKET, SO_REUSEADDR, (char *)&flag, sizeof flag) < 0) 
         {
             perror ("dhcp_socket/setsockopt: SO_REUSEADDR");
             exit (1);
         }
+        /* set broadcast-flag to file-descriptors DGRAM socket */
         if (setsockopt ( listen_fd, SOL_SOCKET, SO_BROADCAST, (char *)&flag, sizeof flag) < 0) 
         {
             perror ("dhcp_socket/setsockopt: SO_BROADCAST");
             exit (1);
         }
+        /* set timeout to file-descriptors DGRAM socket, as we are using non-blocking mode socket */
         if (setsockopt ( listen_fd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof timeout) < 0) 
         {
             perror ("dhcp_socket/setsockopt: SO_BROADCAST");
@@ -34,7 +38,9 @@ init_socket( void )
         
 	memset( &servaddr, 0, sizeof(servaddr) );
         servaddr.sin_family = AF_INET;
+        /* set listening address to broadcast ip */
         servaddr.sin_addr.s_addr = htonl( INADDR_ANY );
+        /* set listening port to dhcp-client port */
         servaddr.sin_port = htons( IPv4_CLIENT_PORT );
         if ( bind( listen_fd, (struct sockaddr*)&servaddr, sizeof(servaddr) ) == -1 ) 
         {
@@ -42,6 +48,7 @@ init_socket( void )
             exit(1);
         }
     }
+    /* Future Use: IPv6 implementation */
     if ( mode == IPv6 ) 
     {
 	if ((ipv6_fd = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) 
@@ -66,6 +73,7 @@ init_socket( void )
         }
 	setsockopt(send6_fd, SOL_SOCKET, SO_BINDTODEVICE, network_interface_name, strlen(network_interface_name));
     } 
+    /* Future Use: IPv6 Implementation */
     else if ( mode == DHCPv6 ) 
     {
 	if ((ipv6_fd = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) 
@@ -91,11 +99,13 @@ init_socket( void )
     }
     return listen_fd;
 }
+/* set dhcp-server ip, As later on we will use it as dst-ip for dhcp-packet */
 void 
 init_dhcp_ip(char * ip)
 {
    dhcp_ip_ = ip;
 }
+/* releasing resources of socket file descriptor */
 void 
 free_socket( int listen_fd )
 {
@@ -103,10 +113,12 @@ free_socket( int listen_fd )
     {
         if (listen_fd) 
         {
+            /* close file-descriptors */
             close(listen_fd);
             listen_fd = 0;
         }
     }
+    /* Future Use: IPv6 implementation */
     else if (mode == IPv6 || mode == DHCPv6) 
     {
 	if (ipv6_fd) 
@@ -121,13 +133,12 @@ free_socket( int listen_fd )
 	}
     }
 }
-static struct timeval base;
-
+/* get the current time to compare the time diff of recv packet on fd */
 static void timeout_init()
 {
         gettimeofday(&base, 0);
 }
-
+/* compare the time difference of recv packet on fd */
 static int timeout_check()
 {
 	struct timeval cur;
@@ -136,7 +147,7 @@ static int timeout_check()
 		return 1;
 	return 0;
 }
-
+/* Future Use: compare udp checksum for raw packets */
 static uint16_t udpchecksum(char *iphead, char *udphead, int udplen, int type)
 {
 	udphead[6] = udphead[7] = 0;
@@ -186,7 +197,7 @@ static uint16_t udpchecksum(char *iphead, char *udphead, int udplen, int type)
 	uint16_t ans = checksum;
 	return (ans == 0xFF)? 0xFF :ntohs(~ans);
 }
-
+/* Future Use: if we use raw sockets */
 static uint16_t checksum(uint16_t *addr, int len)
 {
 	int nleft = len;
@@ -209,12 +220,13 @@ static uint16_t checksum(uint16_t *addr, int len)
 	answer = ~sum;
 	return (answer);
 }
-
+/* decision for sending the packet using Ipv4, IPv6 or DHCPv6 */
 void send_packet( char * packet, int len, int listen_fd )
 {
     switch ( mode ) 
     {
     case IPv4:
+        /* currently we're using DGRAM IPv4 sockets */
         send_udp_ipv4( packet, len, listen_fd, 0);
         return;
     case IPv6:
@@ -228,25 +240,28 @@ void send_packet( char * packet, int len, int listen_fd )
         exit(0);
     }
 }
+/* sending packets to DGRAM sockets */
 void 
 send_udp_ipv4( char* packet, int len, int dhcp_socket, char* server_ip )
 {
     struct sockaddr_in dhcp_to;
     memset( &dhcp_to, 0, sizeof(dhcp_to) );
     dhcp_to.sin_family = AF_INET;
-    dhcp_to.sin_port = htons( IPv4_SERVER_PORT );
+    dhcp_to.sin_port = htons( IPv4_SERVER_PORT ); /* set dst port */
     char * dst_ip = server_ip ? server_ip : dhcp_ip_;
-    inet_aton( dst_ip , &(dhcp_to.sin_addr.s_addr));
+    inet_aton( dst_ip , &(dhcp_to.sin_addr.s_addr)); /* set dst ip */
     if ( dhcp_socket == -1) 
     {
         perror("OVPN-DHCP: dhcp_socket/socket");
         exit(1);
     }        
-    if ( sendto( dhcp_socket, packet, len , 0, (struct sockaddr *)&dhcp_to, sizeof(dhcp_to) ) < 0 )
+    /* send dhcp-packet to socket fd */
+    if ( sendto( dhcp_socket, packet, len , 0, (struct sockaddr *)&dhcp_to, sizeof(dhcp_to) ) < 0 ) 
     {
         fprintf(err_dhcp, "OVPN-DHCP: Failed to Send UDP Datagram!\n");
     }
 }
+/* Future Use: we can use this for sending raw broadcast packets */
 void send_raw_packet_ipv4(char * packet, int len, int listen_fd)
 {
     unsigned char dst_mac[6] = {[0 ... 5] = 0xFF};
@@ -259,13 +274,6 @@ void send_raw_packet_ipv4(char * packet, int len, int listen_fd)
         perror("dhcp_socket/socket");
         exit(1);
     }
-/*    int flag = 1;
-    if (setsockopt ( dhcp_socket, SOL_SOCKET, SO_BROADCAST, (char *)&flag, sizeof flag) < 0) 
-    {
-        perror ("dhcp_socket/setsockopt: SO_BROADCAST");
-        exit(1);
-    }
-*/            
     char send_buf[1024];
     memset(send_buf, 0, sizeof(send_buf) );
     memcpy(send_buf + 14 + 20 + 8, packet, len);
@@ -310,6 +318,7 @@ void send_raw_packet_ipv4(char * packet, int len, int listen_fd)
     close(dhcp_socket);
     dhcp_socket = 0;
 }
+/* sending the release dhcp-packet to socket */
 void 
 release_send_udp_ipv4( char * packet, int len, char* s_id )
 {
@@ -334,6 +343,7 @@ recv_packet(char* packet, int max_len, int listen_fd)
 		exit(0);
 	}
 }
+/* non-blocking receiving of dhcp-packet from dhcp-server */
 int 
 recv_udp_packet_ipv4( char* packet, int max_len, int listen_fd )
 {
@@ -345,9 +355,11 @@ recv_udp_packet_ipv4( char* packet, int max_len, int listen_fd )
         fprintf(err_dhcp, "recv timeout!\n");
         return -1;
   }
+ /* copy packet for successfully recv packet */
   memcpy( packet, recv_buf, len );
   return len;
 }
+/* Future Use: non-blocking recv of raw socket */
 int 
 recv_packet_ipv4(char* packet, int max_len, int listen_fd)
 {
@@ -363,6 +375,7 @@ recv_packet_ipv4(char* packet, int max_len, int listen_fd)
   memcpy(packet, recv_buf + 14 + 20 + 8, len);
   return len;
 }
+/* Future Use: send IPv6 packets */
 void 
 send_packet_ipv6(char *packet, int len)
 {
@@ -388,7 +401,7 @@ send_packet_ipv6(char *packet, int len)
 		exit(1);
 	}
 }
-/* Send DHCPv4 over DHCPv6 */
+/* Future Use: Send DHCPv4 over DHCPv6 */
 void 
 send_packet_dhcpv6(char* packet, int len) {
 	struct ip6_hdr* hdr = (struct ip6_hdr*) buf;
@@ -419,6 +432,7 @@ send_packet_dhcpv6(char* packet, int len) {
 		exit(1);
 	}
 }
+/* Future Use: recv IPv6 packets */
 int 
 recv_packet_ipv6(char* packet, int max_len)
 {
@@ -445,6 +459,7 @@ recv_packet_ipv6(char* packet, int max_len)
     } while (1);
     return -1;
 }
+/* Future Use: recv dhcpv6 raw packets*/
 int 
 recv_packet_dhcpv6(char* packet, int max_len)
 {

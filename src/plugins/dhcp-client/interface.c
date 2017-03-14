@@ -2,6 +2,7 @@
 //#include <net/if_arp.h>
 #include "interface.h"
 
+/* Future Use: IPV6 implementation */
 static inline int value(char ch)
 {
 	if (ch >= '0' && ch <= '9')
@@ -12,7 +13,7 @@ static inline int value(char ch)
 		return ch - 'a' + 10;
 	return 0;
 }
-
+/* Future Use: IPV6 implementation */
 int get_ipv6_address(struct interface * network_interface)
 {
 	FILE *fin = fopen("/proc/net/if_inet6", "r");
@@ -50,6 +51,7 @@ int get_ipv6_address(struct interface * network_interface)
 	fclose(fin);
 	return -1;
 }
+/* future use: generate MAC if not the mac on designated interface */
 void generate_mac( char * uq_if_name, struct interface * config_interface){
     char addr[6] = {0};
     addr[0] = rand() % 0xFF;
@@ -61,7 +63,8 @@ void generate_mac( char * uq_if_name, struct interface * config_interface){
 	
 	memcpy(config_interface->addr, addr, 6);
 }
-void init_interfaces(char * if_name )
+/* future use: Register dhcp-server interface for sending raw packet */
+void init_interfaces(char* if_name )
 {    
     err_dhcp = stderr;
     struct if_nameindex * interfaces = if_nameindex(), *interface;
@@ -107,111 +110,3 @@ void init_interfaces(char * if_name )
         }
     }
 }
-static int check_dns_name(struct lease* lease)
-{
-	if (strlen(lease->dns) == 0)
-		return 0;
-	if (strcmp(lease->dns, "lan") == 0)
-		return 0;
-	return 1;
-}
-
-
-
-void configure_interface(struct lease* lease, char * hw_addr, char * user_name)
-{
-	struct sockaddr_in addr;
-	struct sockaddr_in mask;
-	struct sockaddr_in gateway;
-	struct sockaddr_in dns;
-	
-        memset(&addr, 0, sizeof(addr));
-	addr.sin_family = AF_INET;
-	addr.sin_addr.s_addr = lease->client_ip;
-	
-        memset(&mask, 0, sizeof(mask));
-	mask.sin_family = AF_INET;
-	mask.sin_addr.s_addr = lease->mask_ip;
-	
-        memset(&gateway, 0, sizeof(gateway));
-	gateway.sin_family = AF_INET;
-	gateway.sin_addr.s_addr = lease->router_ip;
-	
-        memset(&dns, 0, sizeof(dns));
-	dns.sin_family = AF_INET;
-	dns.sin_addr.s_addr = lease->dns_ip_1;
-	
-	fprintf(err_dhcp, "Username %s:\n", *user_name);
-	fprintf(err_dhcp, "\tIP address : %s\n", (char*)inet_ntoa(addr.sin_addr));
-	fprintf(err_dhcp, "\tIP subnet mask : %s\n", (char*)inet_ntoa(mask.sin_addr));
-	fprintf(err_dhcp, "\tGateway address : %s\n", (char*)inet_ntoa(gateway.sin_addr));
-	if (check_dns_name(lease))
-        {	
-            fprintf(err_dhcp, "\tDNS Server : %s\n", lease->dns); 
-        }
-        fprintf(err_dhcp, "\tDNS Server : %s\n", (char*)inet_ntoa(dns.sin_addr));
-        fprintf(err_dhcp, "\tLease time : %ds\n", lease->lease_time);
-        fprintf(err_dhcp, "\tRenew time : %ds\n", lease->renew_time);
-        save_lease( lease, hw_addr, user_name );
-    }
-void save_lease( struct lease* lease, char * addr, char * username )
-{
-	char path[500] = {0};
-	strcpy(path, DEFAULT_LEASE_PATH);
-	int len = strlen(path);
-	if (path[len - 1] != '/')
-		path[len++] = '/';
-	char cmd[600] = {0};
-	sprintf(cmd, "mkdir -p %s\n", path);
-	system(cmd);
-	memset(cmd, 0, sizeof(cmd));
-	sprintf(cmd, "%s%s.lease", path, username);
-	fprintf(err_dhcp, "Saving lease to %s\n", cmd);
-	FILE *fout = fopen(cmd, "w");
-	if (!fout)
-		return;
-    struct interface * config_interface = malloc(sizeof(struct interface));
-    memset(config_interface, 0, sizeof(struct interface));
-    strcpy(config_interface->name, username);
-	memcpy(config_interface->addr, addr, 6);
- 
-	fwrite(lease, 1, sizeof(struct lease), fout);
-	fwrite(config_interface, 1, sizeof(struct interface), fout);
-	fclose(fout);
-}
-
-int load_lease(struct lease* lease, char * addr, char * username)
-{
-	char path[500] = {0};
-	strcpy(path, DEFAULT_LEASE_PATH);
-	int len = strlen(path);
-	if (path[len - 1] != '/')
-		path[len++] = '/';
-	char cmd[600] = {0};
-	sprintf(cmd, "%s%s.lease", path, username);
-	fprintf(err_dhcp, "Loading lease from %s\n", cmd);
-	FILE *fin = fopen(cmd, "r");
-	if (!fin)
-		return 0;
-	fread(lease, 1, sizeof(struct lease), fin);
-	struct interface tmp_interface;
-	fread(&(tmp_interface), 1, sizeof(struct interface), fin);
-	fclose(fin);
-    struct interface * config_interface = malloc(sizeof(struct interface));
-    memset(config_interface, 0, sizeof(struct interface));
-    strcpy(config_interface->name, username);
-	memcpy(config_interface->addr, addr, 6);  
-
-    if (memcmp(&tmp_interface, config_interface, sizeof(struct interface)) != 0)
-		return 0;// lease does not match!
-	if (portset) {//port set mode
-		if (lease->portset_index == 0 && lease->portset_mask == 0)
-			return 0; // invalid port set 
-	} else {//no port set mode
-		if (lease->portset_index != 0 || lease->portset_mask != 0)
-			return 0; //invalid port set 
-	}
-	return 1;
-}
-
-
